@@ -13,8 +13,8 @@ class Network {
     const server = net.createServer(socket => {
       logger.info(`New connection from peer ${socket.remoteAddress}`)
       const peer = new Peer(
-          new MessageSocket(socket, `${socket.remoteAddress}:${socket.remotePort}`),
-          `${socket.remoteAddress}:${socket.remotePort}`
+        new MessageSocket(socket, `${socket.remoteAddress}:${socket.remotePort}`),
+        `${socket.remoteAddress}:${socket.remotePort}`
       )
       this.peers.push(peer)
       peer.onConnect()
@@ -27,8 +27,8 @@ class Network {
       logger.info(`Attempting connection to known peer ${peerAddr}`)
       try {
         const peer = new Peer(
-            MessageSocket.createClient(peerAddr),
-            peerAddr
+          MessageSocket.createClient(peerAddr),
+          peerAddr
         )
         this.peers.push(peer)
       }
@@ -42,6 +42,12 @@ class Network {
     logger.info(`Broadcasting object to all peers: %o`, obj)
 
     /* TODO */
+    for (const peer of this.peers) {
+      peer.sendMessage({
+        type: 'ihaveobject',
+        objectid: obj
+      })
+    }
   }
 }
 

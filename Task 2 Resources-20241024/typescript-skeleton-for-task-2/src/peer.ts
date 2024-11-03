@@ -1,21 +1,22 @@
 import { logger } from './logger'
 import { MessageSocket } from './network'
-import { Messages,
-         Message,
-         HelloMessage,
-         PeersMessage, GetPeersMessage,
-         IHaveObjectMessage, GetObjectMessage, ObjectMessage,
-         GetChainTipMessage, ChainTipMessage,
-         ErrorMessage,
-         MessageType,
-         HelloMessageType,
-         PeersMessageType, GetPeersMessageType,
-         IHaveObjectMessageType, GetObjectMessageType, ObjectMessageType,
-         GetChainTipMessageType, ChainTipMessageType,
-         ErrorMessageType,
-         GetMempoolMessageType,
-         MempoolMessageType
-        } from './message'
+import {
+  Messages,
+  Message,
+  HelloMessage,
+  PeersMessage, GetPeersMessage,
+  IHaveObjectMessage, GetObjectMessage, ObjectMessage,
+  GetChainTipMessage, ChainTipMessage,
+  ErrorMessage,
+  MessageType,
+  HelloMessageType,
+  PeersMessageType, GetPeersMessageType,
+  IHaveObjectMessageType, GetObjectMessageType, ObjectMessageType,
+  GetChainTipMessageType, ChainTipMessageType,
+  ErrorMessageType,
+  GetMempoolMessageType,
+  MempoolMessageType
+} from './message'
 import { peerManager } from './peermanager'
 import { canonicalize } from 'json-canonicalize'
 import { db, objectManager } from './object'
@@ -27,17 +28,22 @@ import { mempool } from './mempool'
 const VERSION = '0.10.1'
 const NAME = 'Typescript skeleton for task 2' /* TODO */
 
-const INVALID_FORMAT = 'INVALID_FORMAT'
-const INVALID_HANDSHAKE = 'INVALID_HANDSHAKE'
+export const INVALID_FORMAT = 'INVALID_FORMAT'
+export const INVALID_HANDSHAKE = 'INVALID_HANDSHAKE'
+export const UNKNOWN_OBJECT = 'UNKNOWN_OBJECT'
+export const INVALID_ANCESTRY = 'INVALID_ANCESTRY'
+export const INVALID_TX_OUTPOINT = 'INVALID_TX_OUTPOINT'
+export const INVALID_TX_SIGNATURE = 'INVALID_TX_SIGNATURE'
+export const INVALID_TX_CONSERVATION = 'INVALID_TX_CONSERVATION'
 
 // Number of peers that each peer is allowed to report to us
 const MAX_PEERS_PER_PEER = 30
 
-function shuffleArray(array: Array<String>) : Array<String> {
+function shuffleArray(array: Array<String>): Array<String> {
   let len = array.length,
-      currentIndex;
+    currentIndex;
   for (currentIndex = len - 1; currentIndex > 0; currentIndex--) {
-    let randIndex = Math.floor(Math.random() * (currentIndex + 1) );
+    let randIndex = Math.floor(Math.random() * (currentIndex + 1));
     var temp = array[currentIndex];
     array[currentIndex] = array[randIndex];
     array[randIndex] = temp;
@@ -119,7 +125,7 @@ export class Peer {
     setTimeout(() => {
       if (!this.handshakeCompleted) {
         logger.info(
-            `Peer ${this.peerAddr} failed to handshake within time limit.`
+          `Peer ${this.peerAddr} failed to handshake within time limit.`
         )
         this.fatalError('No handshake within time limit.', INVALID_HANDSHAKE)
       }
@@ -142,11 +148,9 @@ export class Peer {
     }
     // for now, ignore messages that have a valid type but that we don't yet know how to parse
     // TODO: remove
-    if('type' in msg)
-    {
-      if(typeof msg.type === 'string')
-      {
-        if(['ihaveobject', 'getobject', 'object', 'getchaintip', 'chaintip', 'getmempool', 'mempool'].includes(msg.type))
+    if ('type' in msg) {
+      if (typeof msg.type === 'string') {
+        if (['ihaveobject', 'getobject', 'object', 'getchaintip', 'chaintip', 'getmempool', 'mempool'].includes(msg.type))
           return
       }
     }
@@ -154,7 +158,7 @@ export class Peer {
     if (!Message.guard(msg)) {
       const validation = Message.validate(msg)
       return await this.fatalError(
-          `The received message does not match one of the known message formats: ${message}
+        `The received message does not match one of the known message formats: ${message}
          Validation error: ${JSON.stringify(validation)}`, INVALID_FORMAT
       )
     }
@@ -165,19 +169,19 @@ export class Peer {
       return await this.fatalError(`Received message ${message} prior to "hello"`, INVALID_HANDSHAKE)
     }
     Message.match(
-        async () => {
-          return await this.fatalError(`Received a second "hello" message, even though handshake is completed`, INVALID_HANDSHAKE)
-        },
-        this.onMessageGetPeers.bind(this),
-        this.onMessagePeers.bind(this),
-        /*this.onMessageIHaveObject.bind(this),
-        this.onMessageGetObject.bind(this),
-        this.onMessageObject.bind(this),
-        this.onMessageGetChainTip.bind(this),
-        this.onMessageChainTip.bind(this),
-        this.onMessageGetMempool.bind(this),
-        this.onMessageMempool.bind(this),*/
-        this.onMessageError.bind(this)
+      async () => {
+        return await this.fatalError(`Received a second "hello" message, even though handshake is completed`, INVALID_HANDSHAKE)
+      },
+      this.onMessageGetPeers.bind(this),
+      this.onMessagePeers.bind(this),
+      this.onMessageIHaveObject.bind(this),
+      this.onMessageGetObject.bind(this),
+      this.onMessageObject.bind(this),
+      /*this.onMessageGetChainTip.bind(this),
+      this.onMessageChainTip.bind(this),
+      this.onMessageGetMempool.bind(this),
+      this.onMessageMempool.bind(this),*/
+      this.onMessageError.bind(this)
     )(msg)
   }
 
@@ -190,7 +194,7 @@ export class Peer {
     this.handshakeCompleted = true
   }
   async onMessagePeers(msg: PeersMessageType) {
-    if(msg.peers.length > 30)
+    if (msg.peers.length > 30)
       return await this.fatalError(`Send too many peers`, INVALID_FORMAT)
 
     for (const peer of msg.peers) {
@@ -224,12 +228,56 @@ export class Peer {
   }
   async onMessageIHaveObject(msg: IHaveObjectMessageType) {
     /* TODO */
+    this.info(`Remote party sent ihaveobject. Check if object id: ${msg.objectid} already exists.`)
+    const objectExists = await objectManager.exists(msg.objectid)
+    if (!objectExists) {
+      this.info(`Object id: ${msg.objectid} not found in the db. Sending getobject request...`)
+      this.sendMessage({
+        type: 'getobject',
+        objectid: msg.objectid
+      })
+    } else {
+      this.info(`Object id: ${msg.objectid} already exists in the db.`)
+    }
   }
   async onMessageGetObject(msg: GetObjectMessageType) {
     /* TODO */
+    this.info(`Remote party sent getobject. Check if object id: ${msg.objectid} already exists.`)
+    try {
+      const object = await objectManager.get(msg.objectid)
+      this.info(`Object id: ${msg.objectid} already exists in the db. Sending object...`)
+      this.sendMessage({
+        type: 'object',
+        objectid: object
+      })
+
+    } catch (err) {
+      this.fatalError(`Object id: ${msg.objectid} not found in the db.`, UNKNOWN_OBJECT)
+    }
+
   }
   async onMessageObject(msg: ObjectMessageType) {
     /* TODO */
+    this.info(`Remote party sent object. Check if object already exists.`)
+    this.info(`Computing object id.`)
+    const objectid = objectManager.id(msg.object)
+    this.info(`Object id: ${objectid}`)
+    const objectExists = await objectManager.exists(objectid)
+    if (!objectExists) {
+      try {
+        this.info(`Object id: ${objectid} not found in db. Validating object...`)
+
+        if (await objectManager.validate(msg.object, this)) {
+          await objectManager.put(msg.object)
+          this.info(`Object id: ${objectid} has been stored successfully.`)
+        }
+
+      } catch {
+        this.warn(`Error encountered when storing Object id: ${objectid} in the db.`)
+      }
+    } else {
+      this.info(`Object id: ${objectid} already exists`)
+    }
   }
   async onMessageGetChainTip(msg: GetChainTipMessageType) {
     /* TODO */
@@ -248,9 +296,9 @@ export class Peer {
   }
   log(level: string, message: string, ...args: any[]) {
     logger.log(
-        level,
-        `[peer ${this.socket.peerAddr}:${this.socket.netSocket.remotePort}] ${message}`,
-        ...args
+      level,
+      `[peer ${this.socket.peerAddr}:${this.socket.netSocket.remotePort}] ${message}`,
+      ...args
     )
   }
   warn(message: string, ...args: any[]) {

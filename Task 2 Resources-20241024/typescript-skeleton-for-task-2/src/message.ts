@@ -1,16 +1,19 @@
-import { Literal,
-         Record, Array, Union,
-         String, Number,
-         Static, Null, Unknown, Optional } from 'runtypes'
+import {
+  Literal,
+  Record, Array, Union,
+  String, Number,
+  Static, Null, Unknown, Optional
+} from 'runtypes'
 
 /**
  * This file defines all Objects and Message Types that can be conveniently be used later
  */
 
-const Hash = String.withConstraint(s => true) /* TODO */
-const Sig = String.withConstraint(s => true) /* TODO */
-const PK = String.withConstraint(s => true) /* TODO */
-const NonNegative = Number.withConstraint(n => true) /* TODO */
+const Hash = String.withConstraint(s => /^[0-9a-f]{64}$/.test(s)) /* TODO */
+const Sig = String.withConstraint(s => /^[0-9a-f]{128}$/.test(s)) /* TODO */
+const PK = String.withConstraint(s => /^[0-9a-f]{128}$/.test(s)) /* TODO */
+const NonNegative = Number.withConstraint(n => n > 0) /* TODO */
+const WholeNumber = Number.withConstraint(n => n >= 0)
 const Coins = NonNegative
 
 /**
@@ -41,10 +44,18 @@ export const TransactionOutputObject = Record({
 export type TransactionOutputObjectType = Static<typeof TransactionOutputObject>
 
 /* TODO */
-export const CoinbaseTransactionObject = Boolean
-export const SpendingTransactionObject = Boolean
-export const TransactionObject = Boolean
-export type TransactionObjectType = Boolean
+export const CoinbaseTransactionObject = Record({
+  type: Literal('transaction'),
+  height: WholeNumber,
+  outputs: Array(TransactionOutputObject)
+})
+export const SpendingTransactionObject = Record({
+  type: Literal('transaction'),
+  inputs: Array(TransactionInputObject).withConstraint(item=>item.length>0),
+  outputs: Array(TransactionOutputObject)
+})
+export const TransactionObject = Union(SpendingTransactionObject, CoinbaseTransactionObject)
+export type TransactionObjectType = Static<typeof TransactionObject>
 
 export const BlockObject = Record({
   type: Literal('block'),
@@ -77,16 +88,25 @@ export const PeersMessage = Record({
 })
 export type PeersMessageType = Static<typeof PeersMessage>
 
-export const GetObjectMessage = String
-export type GetObjectMessageType = String
-export const IHaveObjectMessage = String
-export type IHaveObjectMessageType = String
+export const GetObjectMessage = Record({
+  type: Literal('getobject'),
+  objectid: String
+})
+export type GetObjectMessageType = Static<typeof GetObjectMessage>
+export const IHaveObjectMessage = Record({
+  type: Literal('ihaveobject'),
+  objectid: String
+})
+export type IHaveObjectMessageType = Static<typeof IHaveObjectMessage>
 
-export const Object = String
-export type ObjectType = String
+export const Object = Union(BlockObject, TransactionObject)
+export type ObjectType = Static<typeof Object>
 
-export const ObjectMessage = String
-export type ObjectMessageType = String
+export const ObjectMessage = Record({
+  type: Literal('object'),
+  object: Object
+})
+export type ObjectMessageType = Static<typeof ObjectMessage>
 
 export const GetChainTipMessage = String
 export type GetChainTipMessageType = String
@@ -110,16 +130,16 @@ export type ErrorMessageType = Static<typeof ErrorMessage>
 export const Messages = [
   HelloMessage,
   GetPeersMessage, PeersMessage,
-  /*IHaveObjectMessage, GetObjectMessage, ObjectMessage,
-  GetChainTipMessage, ChainTipMessage,
+  IHaveObjectMessage, GetObjectMessage, ObjectMessage,
+  /*GetChainTipMessage, ChainTipMessage,
   GetMempoolMessage, MempoolMessage,*/
   ErrorMessage
 ]
 export const Message = Union(
   HelloMessage,
   GetPeersMessage, PeersMessage,
-  /*IHaveObjectMessage, GetObjectMessage, ObjectMessage,
-  GetChainTipMessage, ChainTipMessage,
+  IHaveObjectMessage, GetObjectMessage, ObjectMessage,
+  /*GetChainTipMessage, ChainTipMessage,
   GetMempoolMessage, MempoolMessage,*/
   ErrorMessage
 )

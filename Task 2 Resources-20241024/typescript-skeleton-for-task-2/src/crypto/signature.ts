@@ -1,3 +1,5 @@
+import * as ed from '@noble/ed25519';
+
 export type PublicKey = string
 export type Signature = string
 
@@ -9,4 +11,10 @@ export type Signature = string
  */
 export async function ver(sig: Signature, message: string, pubkey: PublicKey) {
   /* TODO */
+  try{
+    await ed.verify(ed.Signature.fromHex(sig), message, pubkey);
+    return true
+  }catch{
+    return false
+  }
 }

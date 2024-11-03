@@ -24,17 +24,32 @@ class PeerManager {
     await db.put('peers', [...this.knownPeers])
   }
 
-  isValidDNSEntry(addr: string) : boolean {
+  isValidDNSEntry(addr: string): boolean {
     // # TODO
-    return true
+    const regex = /^[a-zA-Z\d\.\-\_]{3,50}$/;
+    let isValidDomain = true
+    if (!regex.test(addr)) {
+      isValidDomain = false;
+    }
+
+    if (addr.indexOf('.') === -1 || addr.startsWith('.') || addr.endsWith('.')) {
+      isValidDomain = false;
+    }
+
+    const hasLetter = /[a-zA-Z]/.test(addr);
+    if (!hasLetter) {
+      isValidDomain = false;
+    }
+    return isValidDomain
   }
 
-  isValidIpv4(addr: string) : boolean {
+  isValidIpv4(addr: string): boolean {
     // # TODO
-    return true
+    const ipv4Regex = /^(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})\.(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})\.(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})\.(25[0-5]|2[0-4]\d|1\d{2}|\d{1,2})$/
+    return ipv4Regex.test(addr)
   }
 
-  isValidHostname(addr: string) : boolean {
+  isValidHostname(addr: string): boolean {
     return this.isValidIpv4(addr) || this.isValidDNSEntry(addr)
   }
 

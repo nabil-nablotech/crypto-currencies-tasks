@@ -1,9 +1,11 @@
 import { ObjectId, objectManager } from './object'
-import { TransactionInputObjectType,
-         TransactionObjectType,
-         TransactionOutputObjectType,
-         OutpointObjectType,
-         SpendingTransactionObject } from './message'
+import {
+  TransactionInputObjectType,
+  TransactionObjectType,
+  TransactionOutputObjectType,
+  OutpointObjectType,
+  SpendingTransactionObject
+} from './message'
 import { PublicKey, Signature } from './crypto/signature'
 import { canonicalize } from 'json-canonicalize'
 import { ver } from './crypto/signature'
@@ -29,7 +31,7 @@ export class Output {
   toNetworkObject(): TransactionOutputObjectType {
     return {
       'pubkey': '0000000000000000000000000000000000000000000000000000000000000000',
-      'value':0
+      'value': 0
     }; /* TODO */
   }
 }
@@ -56,7 +58,7 @@ export class Outpoint {
     /* TODO */
     return {
       'txid': '0000000000000000000000000000000000000000000000000000000000000000',
-      'index':0
+      'index': 0
     };
   }
 
@@ -81,7 +83,7 @@ export class Input {
     return {
       'outpoint': {
         'txid': '0000000000000000000000000000000000000000000000000000000000000000',
-        'index':0
+        'index': 0
       },
       'sig': '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
     }
@@ -129,10 +131,10 @@ export class Transaction {
   inputsUnsigned() {
     /* TODO */
   }
-  toNetworkObject(signed: boolean = true): TransactionObjectType {
-    /* TODO */
-    return true;
-  }
+  // toNetworkObject(signed: boolean = true): TransactionObjectType {
+  //   /* TODO */
+  //   return true;
+  // }
   toString() {
     /* TODO */
   }
