@@ -3,6 +3,7 @@ import { logger } from './logger'
 import { Peer } from './peer'
 import { EventEmitter } from 'events'
 import { peerManager } from './peermanager'
+import { objectManager } from './object'
 
 class Network {
   peers: Peer[] = []
@@ -45,7 +46,7 @@ class Network {
     for (const peer of this.peers) {
       peer.sendMessage({
         type: 'ihaveobject',
-        objectid: obj
+        objectid: objectManager.id(obj)
       })
     }
   }

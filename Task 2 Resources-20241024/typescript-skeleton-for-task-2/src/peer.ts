@@ -150,7 +150,7 @@ export class Peer {
     // TODO: remove
     if ('type' in msg) {
       if (typeof msg.type === 'string') {
-        if (['ihaveobject', 'getobject', 'object', 'getchaintip', 'chaintip', 'getmempool', 'mempool'].includes(msg.type))
+        if (['getchaintip', 'chaintip', 'getmempool', 'mempool'].includes(msg.type))
           return
       }
     }
@@ -221,6 +221,7 @@ export class Peer {
 
       peerManager.peerDiscovered(peer)
     }
+    
   }
   async onMessageGetPeers(msg: GetPeersMessageType) {
     this.info(`Remote party is requesting peers. Sharing.`)
@@ -270,6 +271,7 @@ export class Peer {
         if (await objectManager.validate(msg.object, this)) {
           await objectManager.put(msg.object)
           this.info(`Object id: ${objectid} has been stored successfully.`)
+          network.broadcast(msg.object)
         }
 
       } catch {

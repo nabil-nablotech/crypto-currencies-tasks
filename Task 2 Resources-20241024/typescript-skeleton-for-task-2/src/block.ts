@@ -11,7 +11,7 @@ import { chainManager } from './chain'
 import { Deferred } from './promise'
 
 const TARGET = '0' /* TODO */
-const GENESIS: BlockObjectType = {
+export const GENESIS: BlockObjectType = {
   "T":"00000000abc00000000000000000000000000000000000000000000000000000",
   "created":1671062400,
   "miner":"Marabu",

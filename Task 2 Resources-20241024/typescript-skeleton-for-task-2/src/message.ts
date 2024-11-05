@@ -11,7 +11,7 @@ import {
 
 const Hash = String.withConstraint(s => /^[0-9a-f]{64}$/.test(s)) /* TODO */
 const Sig = String.withConstraint(s => /^[0-9a-f]{128}$/.test(s)) /* TODO */
-const PK = String.withConstraint(s => /^[0-9a-f]{128}$/.test(s)) /* TODO */
+const PK = String.withConstraint(s => /^[0-9a-f]{64}$/.test(s)) /* TODO */
 const NonNegative = Number.withConstraint(n => n > 0) /* TODO */
 const WholeNumber = Number.withConstraint(n => n >= 0)
 const Coins = NonNegative
@@ -22,7 +22,7 @@ const Coins = NonNegative
  */
 export const OutpointObject = Record({
   txid: Hash,
-  index: NonNegative
+  index: WholeNumber
 })
 
 /**
@@ -51,7 +51,7 @@ export const CoinbaseTransactionObject = Record({
 })
 export const SpendingTransactionObject = Record({
   type: Literal('transaction'),
-  inputs: Array(TransactionInputObject).withConstraint(item=>item.length>0),
+  inputs: Array(TransactionInputObject).withConstraint(item => item.length > 0),
   outputs: Array(TransactionOutputObject)
 })
 export const TransactionObject = Union(SpendingTransactionObject, CoinbaseTransactionObject)

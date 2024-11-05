@@ -11,10 +11,12 @@ export type Signature = string
  */
 export async function ver(sig: Signature, message: string, pubkey: PublicKey) {
   /* TODO */
-  try{
-    await ed.verify(ed.Signature.fromHex(sig), message, pubkey);
-    return true
-  }catch{
+  
+  try {
+    const valid = await ed.verify(ed.utils.hexToBytes(sig), new TextEncoder().encode(message), ed.utils.hexToBytes(pubkey));
+    return valid
+  } catch {
     return false
   }
 }
+

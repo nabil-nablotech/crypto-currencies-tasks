@@ -17,21 +17,24 @@ import { Block } from './block'
  */
 export class Output {
   /* TODO */
-
+  pubkey: PublicKey
+  value: number
   static fromNetworkObject(outputMsg: TransactionOutputObjectType): Output {
     /* TODO */
-    const output = new Output('', 0);
+    const output = new Output(outputMsg.pubkey, outputMsg.value);
     return output;
   }
 
   constructor(pubkey: PublicKey, value: number) {
     /* TODO */
+    this.pubkey = pubkey
+    this.value = value
   }
 
   toNetworkObject(): TransactionOutputObjectType {
     return {
-      'pubkey': '0000000000000000000000000000000000000000000000000000000000000000',
-      'value': 0
+      'pubkey': this.pubkey,
+      'value': this.value
     }; /* TODO */
   }
 }
@@ -41,8 +44,12 @@ export class Output {
  */
 export class Outpoint {
   /* TODO */
+  txid: ObjectId
+  index: number
   constructor(txid: ObjectId, index: number) {
     /* TODO */
+    this.txid = txid
+    this.index = index
   }
 
   /**
@@ -57,35 +64,39 @@ export class Outpoint {
   toNetworkObject(): OutpointObjectType {
     /* TODO */
     return {
-      'txid': '0000000000000000000000000000000000000000000000000000000000000000',
-      'index': 0
+      'txid': this.txid,
+      'index': this.index
     };
   }
 
   toString() {
     /* TODO */
+    return canonicalize(this.toNetworkObject())
   }
 }
 
 export class Input {
   /* TODO */
-
+  outpoint: Outpoint
+  sig: string | null
   static fromNetworkObject(inputMsg: TransactionInputObjectType): Input {
     /* TODO */
-    return new Input();
+    return new Input(new Outpoint(inputMsg.outpoint.txid, inputMsg.outpoint.index), inputMsg.sig);
   }
-  constructor(/* TODO */) {
+  constructor(outpoint: Outpoint, sig: string | null) {
     /* TODO */
+    this.outpoint = outpoint
+    this.sig = sig
   }
 
   toNetworkObject(): TransactionInputObjectType {
     /* TODO */
     return {
       'outpoint': {
-        'txid': '0000000000000000000000000000000000000000000000000000000000000000',
-        'index': 0
+        'txid': this.outpoint.txid,
+        'index': this.outpoint.index
       },
-      'sig': '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      'sig': this.sig,
     }
   }
 
@@ -94,7 +105,7 @@ export class Input {
    */
   toUnsigned(): Input {
     /* TODO */
-    return new Input();
+    return new Input(this.outpoint, null);
   }
 }
 
@@ -103,9 +114,13 @@ export class Input {
  */
 export class Transaction {
   /* TODO */
+  // inputs: TransactionInputObjectType[]
+  // outputs: TransactionOutputObjectType[]
+
 
   static inputsFromNetworkObject(inputMsgs: TransactionInputObjectType[]) {
     /* TODO */
+
   }
   static outputsFromNetworkObject(outputMsgs: TransactionOutputObjectType[]) {
     /* TODO */

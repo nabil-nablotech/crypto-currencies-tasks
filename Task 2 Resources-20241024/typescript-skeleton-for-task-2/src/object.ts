@@ -82,7 +82,7 @@ class ObjectManager {
           try {
             inputSum += referencedObject.outputs[input.outpoint.index].value
             if (input.sig !== null) {
-              const isValidSignature = ver(input.sig, messageString, referencedObject.outputs[input.outpoint.index].pubkey);
+              const isValidSignature = await ver(input.sig, messageString, referencedObject.outputs[input.outpoint.index].pubkey);
               if (!isValidSignature) {
                 peer.warn(`Invalid signature of the input with outpoint txid: ${input.outpoint.txid}.`)
                 peer.fatalError(`Signature is not valid.`, INVALID_TX_SIGNATURE)
@@ -98,7 +98,7 @@ class ObjectManager {
 
         } catch {
           peer.warn(`Referenced object: ${input.outpoint.txid} not found.`)
-          peer.fatalError(`A block was referenced at a position where a transaction was expected.`, INVALID_ANCESTRY)
+          peer.fatalError(`Object with id: ${input.outpoint.txid} does not exist.`, INVALID_ANCESTRY)
           return false
         }
       }
@@ -154,9 +154,9 @@ class ObjectManager {
             resolve(object);
           }
 
-          if (counter === 20) {
+          if (counter === 10) {
             clearInterval(intervalId);
-            reject(new Error("Failed to retrieve object after 20 attempts"));
+            reject(new Error("Failed to retrieve object after 10 attempts"));
           }
         }, 2000);
       });
