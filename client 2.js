@@ -17,11 +17,10 @@ client.on('data', (data) => {
     console.log('Received from server:', data.toString());
     const msg = JSON.parse(data.toString().split("\n")[0]);
     if (msg.type == "hello") {
-        client.write(JSON.stringify({ "agent": "client-nablotech", "type": "hello", "version": "0.10.3" }) + "\n");
+        client.write(JSON.stringify({ "agent": "client-nablo-second", "type": "hello", "version": "0.10.3" }) + "\n");
         client.write(JSON.stringify({ "type": "peers", "peers": ["192.168.0.1:213", "192.168.0.1:233", "google.com:503"] }) + "\n");
         // client.write(JSON.stringify({ "type": "ihaveobject", objectid: "d46d09138f0251edc32e28f1a744cb0b7286850e4c9c777d7e3c6e459b289347" }) + "\n");
         // client.write(JSON.stringify({ "type": "ihaveobject", objectid: "895ca2bea390b7508f780c7174900a631e73905dcdc6c07a6b61ede2ebd4033f" }) + "\n");
-        client.write(JSON.stringify({ "type": "ihaveobject", objectid: "895ca2bea390b7508f780c7174900a631e73905dcdc6c07a6b61ede2ebd4033f" }) + "\n");
     } else if (msg.type == "getobject") {
         if (msg.objectid == "d46d09138f0251edc32e28f1a744cb0b7286850e4c9c777d7e3c6e459b289347") {
             client.write(JSON.stringify({
