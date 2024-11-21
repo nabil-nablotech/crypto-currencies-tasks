@@ -90,8 +90,8 @@ export const BlockObject = Record({
   previd: Union(Hash, Null),
   created: Number,
   T: Hash,
-  miner: Optional(String), /* TODO: enforce checks */
-  note: Optional(String) /* TODO: enforce checks */
+  miner: Optional(String.withConstraint(s => /^[\x20-\x7E]*$/.test(s) && s.length<=128)), /* TODO: enforce checks */
+  note: Optional(String.withConstraint(s => /^[\x20-\x7E]*$/.test(s) && s.length<=128)) /* TODO: enforce checks */
 })
 export type BlockObjectType = Static<typeof BlockObject>
 
@@ -126,7 +126,7 @@ export const IHaveObjectMessage = Record({
 })
 export type IHaveObjectMessageType = Static<typeof IHaveObjectMessage>
 
-export const Object = Union(TransactionObject) //Union(TransactionObject, BlockObject) // TODO: re-add block
+export const Object = Union(TransactionObject, BlockObject) // TODO: re-add block
 export type ObjectType = Static<typeof Object>
 
 export const ObjectMessage = Record({

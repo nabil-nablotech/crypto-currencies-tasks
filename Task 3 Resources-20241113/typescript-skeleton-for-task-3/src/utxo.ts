@@ -1,22 +1,32 @@
 import { Block } from './block'
 import { logger } from './logger'
+import { mempool } from './mempool'
 import { OutpointObject, OutpointObjectType } from './message'
 import { db, ObjectId } from './object'
 import { Outpoint, Transaction } from './transaction'
 
-export type UTXO = Set<string>
+export type UTXO = Map<string, Set<number>>
 
 /**
  * a class to represent the UTXO (unspent transaction output) set
  */
 export class UTXOSet {
   /* TODO */
+  utxoSet: UTXO
 
-  constructor(outpoints: UTXO) {
+  constructor() {
     /* TODO */
+    this.utxoSet = mempool.utxoSet
   }
-  copy() {
+  async copy(txid: string, index: number) {
     /* TODO */
+    if (this.utxoSet.has(txid)) {
+      this.utxoSet.set(txid, this.utxoSet.get(txid)!)
+    } else {
+      this.utxoSet.set(txid, new Set([index]))
+    }
+
+    await mempool.setUtxoSet(this.utxoSet)
   }
 
   /**
@@ -35,7 +45,7 @@ export class UTXOSet {
   async applyMultiple(txs: Transaction[]) {
     /* TODO */
   }
-  
+
   toString() {
     /* TODO */
   }

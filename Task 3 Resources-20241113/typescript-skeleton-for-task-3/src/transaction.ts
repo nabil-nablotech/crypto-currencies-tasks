@@ -160,6 +160,7 @@ export class Transaction {
       if (block !== undefined && idx !== undefined) {
         // validating coinbase transaction in the context of a block
         // TODO
+        block.txIds[idx]
       }
       this.fees = 0
       return

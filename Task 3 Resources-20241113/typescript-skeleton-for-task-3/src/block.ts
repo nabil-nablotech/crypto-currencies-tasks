@@ -1,5 +1,10 @@
-import { BlockObject, BlockObjectType,
-         TransactionObject, ObjectType } from './message'
+import {
+  BlockObject, BlockObjectType,
+  TransactionObject, ObjectType,
+  INVALID_FORMAT,
+  INVALID_BLOCK_POW,
+  UNFINDABLE_OBJECT
+} from './message'
 import { hash } from './crypto/hash'
 import { canonicalize } from 'json-canonicalize'
 import { Peer } from './peer'
@@ -9,23 +14,33 @@ import { logger } from './logger'
 import { Transaction } from './transaction'
 import { chainManager } from './chain'
 import { Deferred } from './promise'
+import { CustomError } from './errors'
+import { network } from './network'
 
-const TARGET = '0' /* TODO */
+const TARGET = '00000000abc00000000000000000000000000000000000000000000000000000' /* TODO */
 const GENESIS: BlockObjectType = {
-  "T":"00000000abc00000000000000000000000000000000000000000000000000000",
-  "created":1671062400,
-  "miner":"Marabu",
-  "nonce":"000000000000000000000000000000000000000000000000000000021bea03ed",
-  "note":"The New York Times 2022-12-13: Scientists Achieve Nuclear Fusion Breakthrough With Blast of 192 Lasers",
+  "T": "00000000abc00000000000000000000000000000000000000000000000000000",
+  "created": 1671062400,
+  "miner": "Marabu",
+  "nonce": "000000000000000000000000000000000000000000000000000000021bea03ed",
+  "note": "The New York Times 2022-12-13: Scientists Achieve Nuclear Fusion Breakthrough With Blast of 192 Lasers",
   "previd": null,
-  "txids":[],
-  "type":"block"
-} 
-const BU = 10**12
+  "txids": [],
+  "type": "block"
+}
+const BU = 10 ** 12
 const BLOCK_REWARD = 50 * BU
 
 export class BlockManager {
   /* TODO */
+  const utxoSet: Set<string> = new Set()
+  async init() {
+    const genesisBlockId = objectManager.id(GENESIS)
+    if (!await db.exists(genesisBlockId)) {
+      logger.info(`Genesis block not found. Initializing genesis block.`)
+      objectManager.put(GENESIS)
+    }
+  }
 }
 
 export const blockManager = new BlockManager()
@@ -35,6 +50,15 @@ export const blockManager = new BlockManager()
  */
 export class Block {
   /* TODO */
+  blockid: ObjectId
+  txIds: string[]
+  nonce: string
+  prevId: string | null
+  created: number
+  T: string
+  miner: string | undefined
+  note: string | undefined
+  transactions: Transaction[]
 
   /**
    * Builds a Block object from GENESIS
@@ -42,7 +66,7 @@ export class Block {
    */
   public static async makeGenesis(): Promise<Block> {
     /* TODO */
-    return new Block();
+    return this.fromNetworkObject(GENESIS);;
   }
 
   /**
@@ -50,15 +74,41 @@ export class Block {
    * @param object 
    * @returns a Block object representing this block
    */
-  public static async fromNetworkObject(object: BlockObjectType): Promise<Block> {
+  public static fromNetworkObject(object: BlockObjectType): Block {
     /* TODO */
-    return new Block();
+    return new Block(
+      objectManager.id(object),
+      object.txids,
+      object.nonce,
+      object.previd,
+      object.created,
+      object.T,
+      object.miner,
+      object.note
+    );
   }
 
   constructor(
     /* TODO */
+    blockId: string,
+    txIds: string[],
+    nonce: string,
+    prevId: string | null,
+    created: number,
+    T: string,
+    miner: string | undefined,
+    note: string | undefined
   ) {
     /* TODO */
+    this.blockid = blockId
+    this.txIds = txIds
+    this.nonce = nonce
+    this.prevId = prevId
+    this.created = created
+    this.T = T
+    this.miner = miner
+    this.note = note
+    this.transactions = []
   }
 
   /**
@@ -73,12 +123,14 @@ export class Block {
 
   hasPoW(): boolean {
     /* TODO */
-    return false;
+    const intBlockId = BigInt(`0x${this.blockid}`);
+    const intTarget = BigInt(`0x${this.T}`);
+    return intBlockId < intTarget;
   }
 
   isGenesis(): boolean {
     /* TODO */
-    return false;
+    return (this.prevId === null);
   }
 
   /**
@@ -88,7 +140,65 @@ export class Block {
    */
   async getTxs(/* TODO */): Promise<Transaction[]> {
     /* TODO */
+    const knownTxId: Set<string> = new Set();
+    const missingTxId: Set<string> = new Set();
     const txs: Transaction[] = [];
+    for (const txId of this.txIds) {
+      const known = await objectManager.exists(txId)
+      if (known) {
+        knownTxId.add(txId)
+      } else {
+        missingTxId.add(txId)
+      }
+    }
+
+    // fetch missing
+    try {
+      await Promise.all(Array.from(missingTxId).map(async (id) => {
+        const peerPromises = network.peers.map((peer) => objectManager.retrieve(id, peer).catch(() => null))
+        try {
+          const result = await Promise.race(peerPromises)
+
+          if (result === null) {
+            // Check if all promises are rejected
+            const allSettled = await Promise.all(peerPromises);
+
+            // If all promises failed (all returned null), reject
+            if (allSettled.every(result => result === null)) {
+              throw new CustomError(`Couldn't fine Object ${id}.`, UNFINDABLE_OBJECT, true)
+            }
+          } else if (result !== null) {
+
+            if (TransactionObject.guard(result)) {
+              txs.push(Transaction.fromNetworkObject(result))
+              return result
+            } else {
+              throw new CustomError(`Invalid Object ${id} . A block was referenced at a position where a transaction was expected.`, INVALID_FORMAT)
+            }
+
+          }
+        } catch (e: any) {
+          throw e
+        }
+      }))
+    } catch (e: any) {
+      throw e
+    }
+    // fetch known
+    for (const txId of Array.from(knownTxId)) {
+      try {
+        const object = await objectManager.get(txId)
+        if (TransactionObject.guard(object)) {
+          txs.push(Transaction.fromNetworkObject(object))
+        } else {
+          throw new CustomError(`Invalid Object ${txId} . A block was referenced at a position where a transaction was expected.`, INVALID_FORMAT)
+        }
+      }
+      catch (e) {
+        throw e
+      }
+    }
+
     return txs;
   }
 
@@ -98,6 +208,9 @@ export class Block {
    */
   async validateTx(/* TODO */) {
     /* TODO */
+    this.transactions.forEach((transaction, index) => {
+      transaction.validate(index, this)
+    })
   }
 
   /**
@@ -106,6 +219,9 @@ export class Block {
    */
   async loadParent(): Promise<Block | null> {
     /* TODO */
+    if (this.prevId !== null) {
+
+    }
     return null;
   }
 
@@ -124,6 +240,19 @@ export class Block {
    */
   async validate(/* TODO */) {
     /* TODO */
+    if (this.T !== TARGET) {
+      throw new CustomError(`Invalid block ${this.blockid}. T is different from the expected TARGET value.`, INVALID_FORMAT)
+    }
+    if (!this.hasPoW()) {
+      throw new CustomError(`Invalid block ${this.blockid}. The block does not meet the required mining target.`, INVALID_BLOCK_POW)
+    }
+
+    try {
+      this.transactions = await this.getTxs()
+      await
+    } catch (e) {
+      throw e
+    }
   }
 
   /**

@@ -2,8 +2,11 @@ export type ObjectId = string
 
 import level from 'level-ts'
 import { canonicalize } from 'json-canonicalize'
-import { Object, ObjectType,
-         TransactionObjectType, BlockObjectType } from './message'
+import {
+  Object, ObjectType,
+  TransactionObjectType, BlockObjectType,
+  UNFINDABLE_OBJECT
+} from './message'
 import { Transaction } from './transaction'
 import { Block } from './block'
 import { logger } from './logger'
@@ -43,11 +46,16 @@ class ObjectManager {
 
   async validate(object: ObjectType, peer: Peer) {
     await Object.match(
-        async (obj: TransactionObjectType) => {
-          const tx: Transaction = Transaction.fromNetworkObject(obj)
-          logger.debug(`Validating transaction: ${tx.txid}`)
-          await tx.validate()
-        }
+      async (obj: TransactionObjectType) => {
+        const tx: Transaction = Transaction.fromNetworkObject(obj)
+        logger.debug(`Validating transaction: ${tx.txid}`)
+        await tx.validate()
+      },
+      async (obj: BlockObjectType) => {
+        const block: Block = Block.fromNetworkObject(obj)
+        logger.debug(`Validating block: ${block.blockid}`)
+        await block.validate()
+      }
     )(object)
   }
 
@@ -57,9 +65,28 @@ class ObjectManager {
    * @param peer the peer you want to get the object from
    * @returns the object, or rejects if not possible
    */
-  async retrieve(objectid: ObjectId, peer: Peer): Promise<Boolean>  { // todo: Promise<ObjectType>
+  async retrieve(objectid: ObjectId, peer: Peer): Promise<ObjectType> { // todo: Promise<ObjectType>
     /* TODO */
-    return true
+    return new Promise<ObjectType>((resolve, reject) => {
+      let currentMillisecond = 0
+      peer.sendGetObject(objectid)
+      const interval = setInterval(async () => {
+        const exists = await this.exists(objectid)
+        if (exists) {
+          clearInterval(interval)
+          const object = await this.get(objectid)
+          resolve(object)
+        } else if (currentMillisecond != OBJECT_AVAILABILITY_TIMEOUT) {
+          currentMillisecond += 1000
+        } else if (currentMillisecond == OBJECT_AVAILABILITY_TIMEOUT) {
+          clearInterval(interval)
+          peer.sendError(`Couldn't getObject object:${objectid} from ${peer.socket.peerAddr} within ${OBJECT_AVAILABILITY_TIMEOUT / 1000} seconds`, UNFINDABLE_OBJECT)
+          reject(`Couldn't getObject from ${peer.socket.peerAddr} within ${OBJECT_AVAILABILITY_TIMEOUT / 1000} seconds`)
+
+        }
+      })
+    })
+
   }
 }
 
