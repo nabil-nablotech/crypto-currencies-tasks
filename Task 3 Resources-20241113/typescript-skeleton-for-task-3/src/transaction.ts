@@ -1,5 +1,7 @@
-import {ObjectId, objectManager} from './object'
+import { ObjectId, objectManager } from './object'
 import {
+  CoinbaseTransactionObject,
+  INVALID_BLOCK_COINBASE,
   INVALID_FORMAT,
   INVALID_TX_CONSERVATION,
   INVALID_TX_OUTPOINT,
@@ -11,11 +13,12 @@ import {
   TransactionOutputObjectType,
   UNKNOWN_OBJECT
 } from './message'
-import {PublicKey, Signature, ver} from './crypto/signature'
-import {canonicalize} from 'json-canonicalize'
-import {logger} from './logger'
-import {Block} from './block'
-import {CustomError} from './errors'
+import { PublicKey, Signature, ver } from './crypto/signature'
+import { canonicalize } from 'json-canonicalize'
+import { logger } from './logger'
+import { Block } from './block'
+import { CustomError } from './errors'
+import { mempool } from './mempool'
 
 /**
  * a class to represent a transaction output
@@ -88,8 +91,8 @@ export class Input {
 
   static fromNetworkObject(inputMsg: TransactionInputObjectType): Input {
     return new Input(
-        Outpoint.fromNetworkObject(inputMsg.outpoint),
-        inputMsg.sig
+      Outpoint.fromNetworkObject(inputMsg.outpoint),
+      inputMsg.sig
     )
   }
   constructor(outpoint: Outpoint, sig: Signature | null = null) {
@@ -160,7 +163,11 @@ export class Transaction {
       if (block !== undefined && idx !== undefined) {
         // validating coinbase transaction in the context of a block
         // TODO
-        block.txIds[idx]
+        if (CoinbaseTransactionObject.guard(this.toNetworkObject(false))) {
+          if (idx > 0) {
+            throw new CustomError(`Invalid coinbase transaction ${this.txid}. This transaction should only be in the first index and not more than 1.`, INVALID_BLOCK_COINBASE)
+          }
+        }
       }
       this.fees = 0
       return
@@ -170,36 +177,40 @@ export class Transaction {
 
     if (block !== undefined) {
       // TODO: get coinbase transaction of this block
+      const coinBaseTransaction = block.transactions.find((transaction) => CoinbaseTransactionObject.guard(transaction))
+      if (coinBaseTransaction != undefined) {
+        blockCoinbase = coinBaseTransaction
+      }
     }
 
     const inputValues = await Promise.all(
-        this.inputs.map(async (input, i) => {
-          if (blockCoinbase !== undefined && input.outpoint.txid === blockCoinbase.txid) {
-            // TODO
-          }
+      this.inputs.map(async (input, i) => {
+        if (blockCoinbase !== undefined && input.outpoint.txid === blockCoinbase.txid) {
+          // TODO
+          const utxoSet = mempool.utxoSet
+          if(utxoSet.has())
+        }
 
-          const prevOutput = await input.outpoint.resolve()
+        const prevOutput = await input.outpoint.resolve()
 
-          if (input.sig === null) {
-            throw new CustomError(`No signature available for input ${i} of transaction ${this.txid}`, INVALID_FORMAT)
-          }
-          if (!await ver(input.sig, unsignedTxStr, prevOutput.pubkey)) {
-            throw new CustomError(`Signature validation failed for input ${i} of transaction ${this.txid}`, INVALID_TX_SIGNATURE)
-          }
+        if (input.sig === null) {
+          throw new CustomError(`No signature available for input ${i} of transaction ${this.txid}`, INVALID_FORMAT)
+        }
+        if (!await ver(input.sig, unsignedTxStr, prevOutput.pubkey)) {
+          throw new CustomError(`Signature validation failed for input ${i} of transaction ${this.txid}`, INVALID_TX_SIGNATURE)
+        }
 
-          return prevOutput.value
-        })
+        return prevOutput.value
+      })
     )
 
     // check that no output was used twice
-    for(let i1 = 0; i1 < this.inputs.length; i1 ++)
-    {
-      for(let i2 = i1 + 1; i2 < this.inputs.length; i2 ++)
-      {
+    for (let i1 = 0; i1 < this.inputs.length; i1++) {
+      for (let i2 = i1 + 1; i2 < this.inputs.length; i2++) {
         const o1 = this.inputs[i1].outpoint
         const o2 = this.inputs[i2].outpoint
 
-        if(o1.equals(o2))
+        if (o1.equals(o2))
           throw new CustomError(`Transaction spends twice from same output ${o1.toString()} at input ${i1} and ${i2}`, INVALID_TX_CONSERVATION)
       }
     }
@@ -225,7 +236,7 @@ export class Transaction {
   }
   inputsUnsigned() {
     return this.inputs.map(
-        input => input.toUnsigned().toNetworkObject()
+      input => input.toUnsigned().toNetworkObject()
     )
   }
   toNetworkObject(signed: boolean = true): TransactionObjectType {
