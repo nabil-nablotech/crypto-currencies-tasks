@@ -1,7 +1,9 @@
-import { Literal,
-         Record, Array, Union,
-         String, Number,
-         Static, Null, Unknown, Optional } from 'runtypes'
+import {
+  Literal,
+  Record, Array, Union,
+  String, Number,
+  Static, Null, Unknown, Optional
+} from 'runtypes'
 
 /**
  * This file defines all Objects and Message Types that can be conveniently be used later
@@ -27,18 +29,18 @@ export const UNFINDABLE_OBJECT = 'UNFINDABLE_OBJECT'
 export const INVALID_ANCESTRY = 'INVALID_ANCESTRY'
 
 const ErrorName = Union(
-    Literal(INVALID_FORMAT),
-    Literal(INVALID_HANDSHAKE),
-    Literal(INVALID_TX_CONSERVATION),
-    Literal(INVALID_TX_SIGNATURE),
-    Literal(INVALID_TX_OUTPOINT),
-    Literal(INVALID_BLOCK_POW),
-    Literal(INVALID_BLOCK_TIMESTAMP),
-    Literal(INVALID_BLOCK_COINBASE),
-    Literal(INVALID_GENESIS),
-    Literal(UNKNOWN_OBJECT),
-    Literal(UNFINDABLE_OBJECT),
-    Literal(INVALID_ANCESTRY)
+  Literal(INVALID_FORMAT),
+  Literal(INVALID_HANDSHAKE),
+  Literal(INVALID_TX_CONSERVATION),
+  Literal(INVALID_TX_SIGNATURE),
+  Literal(INVALID_TX_OUTPOINT),
+  Literal(INVALID_BLOCK_POW),
+  Literal(INVALID_BLOCK_TIMESTAMP),
+  Literal(INVALID_BLOCK_COINBASE),
+  Literal(INVALID_GENESIS),
+  Literal(UNKNOWN_OBJECT),
+  Literal(UNFINDABLE_OBJECT),
+  Literal(INVALID_ANCESTRY)
 )
 
 export type ErrorNameType = Static<typeof ErrorName>
@@ -83,6 +85,16 @@ export const SpendingTransactionObject = Record({
 export const TransactionObject = Union(CoinbaseTransactionObject, SpendingTransactionObject)
 export type TransactionObjectType = Static<typeof TransactionObject>
 
+const isAsciiPrintableString = (str: string): boolean => {
+  for (const char of str) {
+    const charCode = char.charCodeAt(0);
+    if (charCode < 32 || charCode > 126) {
+      return false; // Return false if any character is outside the range
+    }
+  }
+  return true;
+}
+
 export const BlockObject = Record({
   type: Literal('block'),
   txids: Array(Hash),
@@ -90,8 +102,8 @@ export const BlockObject = Record({
   previd: Union(Hash, Null),
   created: Number,
   T: Hash,
-  miner: Optional(String.withConstraint(s => /^[\x20-\x7E]*$/.test(s) && s.length<=128)), /* TODO: enforce checks */
-  note: Optional(String.withConstraint(s => /^[\x20-\x7E]*$/.test(s) && s.length<=128)) /* TODO: enforce checks */
+  miner: Optional(String.withConstraint(s => isAsciiPrintableString(s) && s.length <= 128)), /* TODO: enforce checks */
+  note: Optional(String.withConstraint(s => isAsciiPrintableString(s) && s.length <= 128)) /* TODO: enforce checks */
 })
 export type BlockObjectType = Static<typeof BlockObject>
 

@@ -55,6 +55,7 @@ class ObjectManager {
         const block: Block = Block.fromNetworkObject(obj)
         logger.debug(`Validating block: ${block.blockid}`)
         await block.validate()
+        mempool.save()
       }
     )(object)
   }

@@ -4,6 +4,7 @@ import { Peer } from './peer'
 import { EventEmitter } from 'events'
 import { peerManager } from './peermanager'
 import { mempool } from './mempool'
+import { blockManager } from './block'
 
 class Network {
   peers: Peer[] = []
@@ -11,6 +12,7 @@ class Network {
   async init(bindPort: number, bindIP: string) {
     await peerManager.load()
     await mempool.init()
+    await blockManager.init()
 
     const server = net.createServer(socket => {
       logger.info(`New connection from peer ${socket.remoteAddress}`)

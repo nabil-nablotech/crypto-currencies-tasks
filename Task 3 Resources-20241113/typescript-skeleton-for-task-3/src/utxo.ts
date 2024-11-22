@@ -18,15 +18,9 @@ export class UTXOSet {
     /* TODO */
     this.utxoSet = mempool.utxoSet
   }
-  async copy(txid: string, index: number) {
+  async copy() {
     /* TODO */
-    if (this.utxoSet.has(txid)) {
-      this.utxoSet.set(txid, this.utxoSet.get(txid)!)
-    } else {
-      this.utxoSet.set(txid, new Set([index]))
-    }
 
-    await mempool.setUtxoSet(this.utxoSet)
   }
 
   /**
@@ -36,6 +30,21 @@ export class UTXOSet {
    */
   async apply(tx: Transaction) {
     /* TODO */
+    logger.debug(`Applying ${tx.txid} to the current utxo set`)
+    tx.outputs.forEach((transaction, index) => {
+      if (this.utxoSet.has(tx.txid)) {
+        this.utxoSet.set(tx.txid, this.utxoSet.get(tx.txid)!.add(index))
+      } else {
+        this.utxoSet.set(tx.txid, new Set([index]))
+      }
+    })
+
+    tx.inputs.forEach((input) => {
+      this.utxoSet.get(input.outpoint.txid)?.delete(input.outpoint.index)
+      if (this.utxoSet.get(input.outpoint.txid)?.size === 0) {
+        this.utxoSet.delete(input.outpoint.txid)
+      }
+    })
   }
 
   /**
@@ -50,3 +59,5 @@ export class UTXOSet {
     /* TODO */
   }
 }
+
+export const utxo = new UTXOSet()

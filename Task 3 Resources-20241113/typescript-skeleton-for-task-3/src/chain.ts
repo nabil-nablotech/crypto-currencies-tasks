@@ -36,14 +36,14 @@ export class Chain {
    * @param b2 a block belonging to a new, longer chain
    * @returns [lca, lca..b1, lca..b2]
    */
-  static async getForks(b1: Block, b2: Block): Promise<[Block, Chain, Chain]> {
-    /* TODO */
-    const lca = new Block();
-    const shortFork = new Block();
-    const longFork = new Block();
+  // static async getForks(b1: Block, b2: Block): Promise<[Block, Chain, Chain]> {
+  //   /* TODO */
+  //   const lca = new Block();
+  //   const shortFork = new Block();
+  //   const longFork = new Block();
 
-    return [lca, shortFork, longFork]
-  }
+  //   return [lca, shortFork, longFork]
+  // }
 }
 
 export const chainManager = new ChainManager()

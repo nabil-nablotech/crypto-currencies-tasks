@@ -12,8 +12,8 @@ class MemPool {
   /* TODO */
   utxoSet: UTXO = new Map<string, Set<number>>()
   async init() {
+    logger.debug('Initializing mempool')
     await this.load()
-    logger.debug('Mempool initialized')
   }
 
   /**
@@ -53,11 +53,13 @@ class MemPool {
    */
   async save() {
     /* TODO */
-    logger.debug(`Storing utxoset set`)
+
     const obj: { [key: string]: any } = {};
     this.utxoSet.forEach((value, key) => {
       obj[key] = Array.from(value);
     });
+    logger.debug(`Storing utxoset set:`)
+    logger.debug(obj)
     return await db.put(`utxoset`, obj)
   }
 
@@ -70,7 +72,7 @@ class MemPool {
       const utxset = await db.get(`utxoset`)
       Object.keys(utxset).forEach((key) => this.utxoSet.set(key, new Set(utxset[key])))
     } catch (error) {
-      logger.error(`Failed to load utxoset from db.`)
+      logger.error(error)
     }
   }
 

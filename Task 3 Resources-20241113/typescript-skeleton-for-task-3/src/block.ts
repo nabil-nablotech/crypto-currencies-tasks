@@ -3,13 +3,18 @@ import {
   TransactionObject, ObjectType,
   INVALID_FORMAT,
   INVALID_BLOCK_POW,
-  UNFINDABLE_OBJECT
+  UNFINDABLE_OBJECT,
+  CoinbaseTransactionObject,
+  INVALID_BLOCK_COINBASE,
+  INVALID_GENESIS,
+  INVALID_BLOCK_TIMESTAMP,
+  INVALID_ANCESTRY
 } from './message'
 import { hash } from './crypto/hash'
 import { canonicalize } from 'json-canonicalize'
 import { Peer } from './peer'
 import { objectManager, ObjectId, db } from './object'
-import { UTXOSet } from './utxo'
+import { utxo, UTXOSet } from './utxo'
 import { logger } from './logger'
 import { Transaction } from './transaction'
 import { chainManager } from './chain'
@@ -33,13 +38,12 @@ const BLOCK_REWARD = 50 * BU
 
 export class BlockManager {
   /* TODO */
-  const utxoSet: Set<string> = new Set()
   async init() {
     const genesisBlockId = objectManager.id(GENESIS)
-    if (!await db.exists(genesisBlockId)) {
-      logger.info(`Genesis block not found. Initializing genesis block.`)
-      objectManager.put(GENESIS)
-    }
+    // if (!await db.exists(genesisBlockId)) {
+    //   logger.info(`Genesis block not found. Initializing genesis block.`)
+    //   objectManager.put(GENESIS)
+    // }
   }
 }
 
@@ -64,9 +68,9 @@ export class Block {
    * Builds a Block object from GENESIS
    * @returns the genesis block
    */
-  public static async makeGenesis(): Promise<Block> {
+  public static makeGenesis(): Block {
     /* TODO */
-    return this.fromNetworkObject(GENESIS);;
+    return Block.fromNetworkObject(GENESIS);;
   }
 
   /**
@@ -118,7 +122,15 @@ export class Block {
    */
   async getCoinbase(): Promise<Transaction> {
     /* TODO */
-    return new Transaction("d46d09138f0251edc32e28f1a744cb0b7286850e4c9c777d7e3c6e459b289347", [], [], null); // TODO: change
+    if (this.transactions.length > 0) {
+      if (CoinbaseTransactionObject.guard(this.transactions[0].toNetworkObject(false))) {
+        return this.transactions[0]
+      } else {
+        throw new Error("No coinbase in the first index.")
+      }
+    } else {
+      throw new Error("No transactions.")
+    }
   }
 
   hasPoW(): boolean {
@@ -208,9 +220,35 @@ export class Block {
    */
   async validateTx(/* TODO */) {
     /* TODO */
+    let totalFees = 0
     this.transactions.forEach((transaction, index) => {
       transaction.validate(index, this)
     })
+
+
+    if (this.transactions.length > 0) {
+      try {
+        const coinBase = await this.getCoinbase()
+        this.transactions.forEach(async (transaction) => {
+          if (coinBase.txid !== transaction.txid) {
+            if (transaction.fees !== undefined)
+              totalFees += transaction.fees
+          }
+        })
+        if (coinBase.outputs[0].value > (BLOCK_REWARD + totalFees)) {
+          throw new CustomError(`Invalid block ${this.blockid}. The coinbase transaction creates more coins than allowed.`, INVALID_BLOCK_COINBASE)
+        }
+        utxo.apply(coinBase)
+      } catch (e: any) { // typescript does not allow strongly type try catch blocks....
+        if (e instanceof CustomError) {
+          throw e
+        }
+        else
+          logger.debug("No coinbase transaction in this block.")
+      }
+
+    }
+
   }
 
   /**
@@ -220,6 +258,13 @@ export class Block {
   async loadParent(): Promise<Block | null> {
     /* TODO */
     if (this.prevId !== null) {
+      try {
+        logger.debug("Loading parent.")
+        const result = await objectManager.get(this.prevId)
+        return Block.fromNetworkObject(result)
+      } catch (error) {
+        logger.error("Failed to load parent")
+      }
 
     }
     return null;
@@ -243,16 +288,30 @@ export class Block {
     if (this.T !== TARGET) {
       throw new CustomError(`Invalid block ${this.blockid}. T is different from the expected TARGET value.`, INVALID_FORMAT)
     }
+
+    if (this.isGenesis()) {
+      if (Block.makeGenesis().blockid !== this.blockid) {
+        throw new CustomError(`Invalid block ${this.blockid}. Gensis block does not match with object specified in the standard.`, INVALID_GENESIS)
+      }
+    }
+
     if (!this.hasPoW()) {
       throw new CustomError(`Invalid block ${this.blockid}. The block does not meet the required mining target.`, INVALID_BLOCK_POW)
     }
 
-    try {
-      this.transactions = await this.getTxs()
-      await
-    } catch (e) {
-      throw e
+
+    const parent = await this.loadParent()
+    if (parent !== null && !this.isGenesis()) {
+      if ((parent.created >= this.created) || (this.created >= Math.floor(Date.now() / 1000))) {
+        throw new CustomError(`Invalid block ${this.blockid}. The block timestamp is invalid.`, INVALID_BLOCK_TIMESTAMP)
+      }
+    } else if (parent === null && !this.isGenesis()) {
+      throw new CustomError(`Invalid block ${this.blockid}. The block has no parent.`, INVALID_ANCESTRY)
+
     }
+
+    this.transactions = await this.getTxs()
+    await this.validateTx()
   }
 
   /**

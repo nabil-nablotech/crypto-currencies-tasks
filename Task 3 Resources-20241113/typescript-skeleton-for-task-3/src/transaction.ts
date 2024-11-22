@@ -19,6 +19,7 @@ import { logger } from './logger'
 import { Block } from './block'
 import { CustomError } from './errors'
 import { mempool } from './mempool'
+import { utxo } from './utxo'
 
 /**
  * a class to represent a transaction output
@@ -150,7 +151,7 @@ export class Transaction {
     this.height = height
   }
   isCoinbase() {
-    return this.inputs.length === 0
+    return this.inputs.length === 0 && this.height !== null
   }
   async validate(idx?: number, block?: Block) {
     logger.debug(`Validating transaction ${this.txid}`)
@@ -177,7 +178,7 @@ export class Transaction {
 
     if (block !== undefined) {
       // TODO: get coinbase transaction of this block
-      const coinBaseTransaction = block.transactions.find((transaction) => CoinbaseTransactionObject.guard(transaction))
+      const coinBaseTransaction = block.transactions.find((transaction) => CoinbaseTransactionObject.guard(transaction.toNetworkObject()))
       if (coinBaseTransaction != undefined) {
         blockCoinbase = coinBaseTransaction
       }
@@ -187,11 +188,21 @@ export class Transaction {
       this.inputs.map(async (input, i) => {
         if (blockCoinbase !== undefined && input.outpoint.txid === blockCoinbase.txid) {
           // TODO
-          const utxoSet = mempool.utxoSet
-          if(utxoSet.has())
+          throw new CustomError(`Invalid spending transaction ${this.txid}. This transaction in a block spends from the coinbase transaction in the same block.`, INVALID_TX_OUTPOINT)
+
         }
 
         const prevOutput = await input.outpoint.resolve()
+
+        if (!utxo.utxoSet.has(input.outpoint.txid)) {
+          throw new CustomError(`Invalid spending transaction ${this.txid}. Outpoint transaction does not exist in the UTXO set.`, INVALID_TX_OUTPOINT)
+        }
+
+        if (utxo.utxoSet.has(input.outpoint.txid)) {
+          if (!utxo.utxoSet.get(input.outpoint.txid)?.has(input.outpoint.index)) {
+            throw new CustomError(`Invalid spending transaction ${this.txid}. Outpoint transaction found but index does not exist in the UTXO set.`, INVALID_TX_OUTPOINT)
+          }
+        }
 
         if (input.sig === null) {
           throw new CustomError(`No signature available for input ${i} of transaction ${this.txid}`, INVALID_FORMAT)
@@ -232,6 +243,8 @@ export class Transaction {
     }
     this.fees = sumInputs - sumOutputs
     logger.debug(`Transaction ${this.txid} pays fees ${this.fees}`)
+
+    utxo.apply(this)
     logger.debug(`Transaction ${this.txid} is valid`)
   }
   inputsUnsigned() {
