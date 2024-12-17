@@ -26,6 +26,7 @@ import { mempool } from './mempool'
 
 import { INVALID_FORMAT, INVALID_HANDSHAKE, UNKNOWN_OBJECT } from "./message";
 import { CustomError } from "./errors";
+import { Block } from './block'
 
 const VERSION = '0.10.3'
 const NAME = 'Typescript skeleton for task 4' /* TODO */
@@ -89,6 +90,9 @@ export class Peer {
   }
   async sendGetChainTip() {
     /* TODO */
+    this.sendMessage({
+      type: 'getchaintip'
+    })
   }
   async sendChainTip(blockid: ObjectId) {
     /* TODO */
@@ -136,6 +140,7 @@ export class Peer {
 
     await this.sendHello()
     await this.sendGetPeers()
+    await this.sendGetChainTip()
   }
   async onMessage(message: string) {
     this.debug(`Message arrival: ${message}`)
@@ -155,7 +160,7 @@ export class Peer {
     {
       if(typeof msg.type === 'string')
       {
-        if(['getchaintip', 'chaintip', 'getmempool', 'mempool'].includes(msg.type))
+        if(['getmempool', 'mempool'].includes(msg.type))
           return
       }
     }
@@ -182,9 +187,9 @@ export class Peer {
         this.onMessageIHaveObject.bind(this),
         this.onMessageGetObject.bind(this),
         this.onMessageObject.bind(this),
-        /*this.onMessageGetChainTip.bind(this),
+        this.onMessageGetChainTip.bind(this),
         this.onMessageChainTip.bind(this),
-        this.onMessageGetMempool.bind(this),
+        /*this.onMessageGetMempool.bind(this),
         this.onMessageMempool.bind(this),*/
         this.onMessageError.bind(this)
     )(msg)
@@ -294,9 +299,63 @@ export class Peer {
   }
   async onMessageGetChainTip(msg: GetChainTipMessageType) {
     /* TODO */
+    await chainManager.save()
   }
   async onMessageChainTip(msg: ChainTipMessageType) {
     /* TODO */
+    let known: boolean = false
+    this.info(`Received chaintip message : %o`, msg)
+    known = await objectManager.exists(msg.blockid)
+   
+    if (known) {
+      this.debug(`Object with id ${msg.blockid} is already known`)
+      try {
+        const obj = await objectManager.get(msg.blockid)
+        if(obj.type!=="block"){
+          throw new CustomError(`Invalid object ${msg.blockid}. Object is not of a block type.`, INVALID_FORMAT)
+        }
+        return
+      }
+      catch (e: any) {
+        if (e instanceof CustomError)
+          {
+            if(e.isNonFatal)
+              this.sendError(`Received invalid object: ${e.message}`, e.getErrorName())
+            else
+              this.fatalError(`Received invalid object: ${e.message}`, e.getErrorName())
+          }
+          else
+            this.fatalError(`Received invalid object: ${e.message}`, INVALID_FORMAT)
+          return
+      }
+    }else{
+      this.info(`Retrieving object with id ${msg.blockid} from peers.`)
+      try {
+        const obj = await objectManager.retrieve(msg.blockid)
+        if(obj.type!=="block"){
+          throw new CustomError(`Invalid object ${msg.blockid}. Object is not of a block type.`, INVALID_FORMAT)
+        }
+
+        const block = await Block.fromNetworkObject(obj)
+        // chainManager.
+        return
+      }
+      catch (e: any) {
+        if (e instanceof CustomError)
+          {
+            if(e.isNonFatal)
+              this.sendError(`Received invalid object: ${e.message}`, e.getErrorName())
+            else
+              this.fatalError(`Received invalid object: ${e.message}`, e.getErrorName())
+          }
+          else
+            this.fatalError(`Received invalid object: ${e.message}`, INVALID_FORMAT)
+          return
+      }
+      
+    }
+    
+
   }
   async onMessageGetMempool(msg: GetMempoolMessageType) {
     /* TODO */

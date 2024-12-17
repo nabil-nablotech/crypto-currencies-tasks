@@ -2,8 +2,11 @@ export type ObjectId = string
 
 import level from 'level-ts'
 import { canonicalize } from 'json-canonicalize'
-import { Object, ObjectType,
-         TransactionObjectType, BlockObjectType } from './message'
+import {
+  Object, ObjectType,
+  TransactionObjectType, BlockObjectType,
+  UNFINDABLE_OBJECT
+} from './message'
 import { Transaction } from './transaction'
 import { Block } from './block'
 import { logger } from './logger'
@@ -11,6 +14,8 @@ import { hash } from './crypto/hash'
 import { Peer } from './peer'
 import { Deferred, delay, resolveToReject } from './promise'
 import { mempool } from './mempool'
+import { network } from './network'
+import { CustomError } from './errors'
 
 export const db = new level('./db')
 const OBJECT_AVAILABILITY_TIMEOUT = 5000 // ms
@@ -48,16 +53,16 @@ class ObjectManager {
 
   async validate(object: ObjectType, peer: Peer) {
     await Object.match(
-        async (obj: TransactionObjectType) => {
-          const tx: Transaction = Transaction.fromNetworkObject(obj)
-          logger.debug(`Validating transaction: ${tx.txid}`)
-          await tx.validate()
-        },
-        async (obj: BlockObjectType) => {
-          const block = await Block.fromNetworkObject(obj)
-          logger.debug(`Validating block: ${block.blockid}`)
-          await block.validate(peer)
-        }
+      async (obj: TransactionObjectType) => {
+        const tx: Transaction = Transaction.fromNetworkObject(obj)
+        logger.debug(`Validating transaction: ${tx.txid}`)
+        await tx.validate()
+      },
+      async (obj: BlockObjectType) => {
+        const block = await Block.fromNetworkObject(obj)
+        logger.debug(`Validating block: ${block.blockid}`)
+        await block.validate(peer)
+      }
     )(object)
   }
 
@@ -68,7 +73,7 @@ class ObjectManager {
    * @returns the object, or rejects if not possible
    * TODO for Task 4: Fetch required objects from all your connected peers
    */
-  async retrieve(objectid: ObjectId, peer: Peer): Promise<ObjectType>  {
+  async retrieve(objectid: ObjectId): Promise<ObjectType> {
     logger.debug(`Retrieving object ${objectid}`)
     let object: ObjectType
     const deferred = new Deferred<ObjectType>()
@@ -83,22 +88,30 @@ class ObjectManager {
       logger.debug(`Object ${objectid} was already in database`)
       return object
     }
-    catch (e) {}
+    catch (e) { }
 
-    logger.debug(`Object ${objectid} not in database. Requesting it from peer ${peer.peerAddr}.`)
-    await peer.sendGetObject(objectid)
+    network.peers.forEach(async peer => {
+      logger.debug(`Object ${objectid} not in database. Requesting it from peer ${peer.peerAddr}.`)
+      await peer.sendGetObject(objectid)
+    })
 
-    object = await Promise.race([
-      resolveToReject(
+    try {
+      object = await Promise.race([
+        resolveToReject(
           delay(OBJECT_AVAILABILITY_TIMEOUT),
           `Timeout of ${OBJECT_AVAILABILITY_TIMEOUT}ms in retrieving object ${objectid} exceeded`
-      ),
-      deferred.promise
-    ])
+        ),
+        deferred.promise
+      ])
+  
+      logger.debug(`Object ${objectid} was retrieved from one of the peers.`)
+  
+      return object
+    }
+    catch (e) { 
+      throw new CustomError(`Couldn't find object ${objectid}.`, UNFINDABLE_OBJECT)
+    }
 
-    logger.debug(`Object ${objectid} was retrieved from peer ${peer.peerAddr}.`)
-
-    return object
   }
 }
 

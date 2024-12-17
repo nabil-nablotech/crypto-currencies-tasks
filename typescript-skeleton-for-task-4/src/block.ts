@@ -183,7 +183,7 @@ export class Block {
         txPromises.push(objectManager.get(txid))
       }
       else {
-        txPromises.push(objectManager.retrieve(txid, peer))
+        txPromises.push(objectManager.retrieve(txid))
       }
     }
     try {

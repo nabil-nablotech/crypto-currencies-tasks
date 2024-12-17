@@ -140,11 +140,16 @@ export const ObjectMessage = Record({
 })
 export type ObjectMessageType = Static<typeof ObjectMessage>
 
-export const GetChainTipMessage = String
-export type GetChainTipMessageType = String
+export const GetChainTipMessage = Record({
+  type: Literal('getchaintip')
+})
+export type GetChainTipMessageType = Static<typeof GetChainTipMessage>
 
-export const ChainTipMessage = String
-export type ChainTipMessageType = String
+export const ChainTipMessage = Record({
+  type: Literal('chaintip'),
+  blockid: Hash
+})
+export type ChainTipMessageType = Static<typeof ChainTipMessage>
 
 export const GetMempoolMessage = String
 export type GetMempoolMessageType = String
@@ -163,16 +168,16 @@ export const Messages = [
   HelloMessage,
   GetPeersMessage, PeersMessage,
   IHaveObjectMessage, GetObjectMessage, ObjectMessage,
-  /*GetChainTipMessage, ChainTipMessage,
-  GetMempoolMessage, MempoolMessage,*/
+  GetChainTipMessage, ChainTipMessage,
+  /*GetMempoolMessage, MempoolMessage,*/
   ErrorMessage
 ]
 export const Message = Union(
   HelloMessage,
   GetPeersMessage, PeersMessage,
   IHaveObjectMessage, GetObjectMessage, ObjectMessage,
-  /*GetChainTipMessage, ChainTipMessage,
-  GetMempoolMessage, MempoolMessage,*/
+  GetChainTipMessage, ChainTipMessage,
+  /*GetMempoolMessage, MempoolMessage,*/
   ErrorMessage
 )
 export type MessageType = Static<typeof Message>
