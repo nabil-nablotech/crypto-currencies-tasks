@@ -113,6 +113,7 @@ class ObjectManager {
     }
 
   }
+
 }
 
 export const objectManager = new ObjectManager()

@@ -96,6 +96,10 @@ export class Peer {
   }
   async sendChainTip(blockid: ObjectId) {
     /* TODO */
+    this.sendMessage({
+      type: 'chaintip',
+      blockid:blockid
+    })
   }
   async sendGetMempool() {
     /* TODO */
@@ -299,7 +303,11 @@ export class Peer {
   }
   async onMessageGetChainTip(msg: GetChainTipMessageType) {
     /* TODO */
-    await chainManager.save()
+    if(chainManager.chain.length>0){
+      const block = chainManager.chain[chainManager.chain.length-1]
+      const id = objectManager.id(block.toNetworkObject())
+      this.sendChainTip(id)
+    }
   }
   async onMessageChainTip(msg: ChainTipMessageType) {
     /* TODO */
@@ -337,7 +345,7 @@ export class Peer {
         }
 
         const block = await Block.fromNetworkObject(obj)
-        // chainManager.
+        await chainManager.onValidBlockArrival(block)
         return
       }
       catch (e: any) {

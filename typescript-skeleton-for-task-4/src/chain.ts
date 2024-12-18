@@ -17,6 +17,15 @@ class ChainManager {
 
   async init() {
     /* TODO */
+    try {
+      const chain = await db.get(`chain`)
+      if(Array.isArray(chain)){
+        chain.forEach(async (item)=>this.chain.push(await Block.fromNetworkObject(item)))
+      }
+      
+    }catch(err){
+      logger.debug(err)
+    }
   }
   async save() {
     /* TODO */
@@ -29,6 +38,7 @@ class ChainManager {
   async onValidBlockArrival(block: Block) {
     /* TODO */
     this.chain.push(block)
+    await this.save()
   }
 }
 
