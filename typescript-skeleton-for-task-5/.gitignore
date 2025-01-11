@@ -1,0 +1,8 @@
+db/
+dist/
+node_modules/
+.DS_Store
+.js
+.idea
+_submission
+package-lock.json
