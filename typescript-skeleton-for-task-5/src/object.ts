@@ -18,7 +18,7 @@ export const db = new level('./db')
 const OBJECT_AVAILABILITY_TIMEOUT = 5000 // ms
 
 /**
- * Interfaces the database
+ * Iy  nterfaces the database
  */
 class ObjectManager {
   deferredObjects: { [key: string]: Deferred<ObjectType>[] } = {}

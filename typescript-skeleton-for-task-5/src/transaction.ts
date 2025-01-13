@@ -18,6 +18,7 @@ import {logger} from './logger'
 import {Block} from './block'
 import {CustomError} from './errors'
 import {Peer} from "./peer";
+import { mempool } from './mempool'
 
 /**
  * a class to represent a transaction output
@@ -215,6 +216,7 @@ export class Transaction {
     this.fees = sumInputs - sumOutputs
     logger.debug(`Transaction ${this.txid} pays fees ${this.fees}`)
     logger.debug(`Transaction ${this.txid} is valid`)
+    await mempool.onTransactionArrival(this)
   }
   inputsUnsigned() {
     return this.inputs.map(

@@ -1,21 +1,22 @@
 import { logger } from './logger'
 import { MessageSocket } from './network'
-import { Messages,
-         Message,
-         HelloMessage,
-         PeersMessage, GetPeersMessage,
-         IHaveObjectMessage, GetObjectMessage, ObjectMessage,
-         GetChainTipMessage, ChainTipMessage,
-         ErrorMessage,
-         MessageType,
-         HelloMessageType,
-         PeersMessageType, GetPeersMessageType,
-         IHaveObjectMessageType, GetObjectMessageType, ObjectMessageType,
-         GetChainTipMessageType, ChainTipMessageType,
-         ErrorMessageType,
-         GetMempoolMessageType,
-         MempoolMessageType
-        } from './message'
+import {
+  Messages,
+  Message,
+  HelloMessage,
+  PeersMessage, GetPeersMessage,
+  IHaveObjectMessage, GetObjectMessage, ObjectMessage,
+  GetChainTipMessage, ChainTipMessage,
+  ErrorMessage,
+  MessageType,
+  HelloMessageType,
+  PeersMessageType, GetPeersMessageType,
+  IHaveObjectMessageType, GetObjectMessageType, ObjectMessageType,
+  GetChainTipMessageType, ChainTipMessageType,
+  ErrorMessageType,
+  GetMempoolMessageType,
+  MempoolMessageType
+} from './message'
 import { peerManager } from './peermanager'
 import { canonicalize } from 'json-canonicalize'
 import { db, objectManager } from './object'
@@ -88,9 +89,17 @@ export class Peer {
   }
   async sendGetMempool() {
     /* TODO */
+    this.sendMessage({
+      type: 'getmempool'
+    })
   }
   async sendMempool(txids: ObjectId[]) {
     /* TODO */
+    this.sendMessage({
+      type: 'mempool',
+      txids: txids
+    })
+
   }
   async sendError(msg: string, name: string) {
     this.sendMessage({
@@ -121,7 +130,7 @@ export class Peer {
     setTimeout(() => {
       if (!this.handshakeCompleted) {
         logger.info(
-            `Peer ${this.peerAddr} failed to handshake within time limit.`
+          `Peer ${this.peerAddr} failed to handshake within time limit.`
         )
         this.fatalError('No handshake within time limit.', INVALID_HANDSHAKE)
       }
@@ -130,6 +139,7 @@ export class Peer {
     await this.sendHello()
     await this.sendGetPeers()
     await this.sendGetChainTip()
+    await this.sendGetMempool()
   }
   async onMessage(message: string) {
     this.debug(`Message arrival: ${message}`)
@@ -145,11 +155,9 @@ export class Peer {
     }
     // for now, ignore messages that have a valid type but that we don't yet know how to parse
     // TODO: remove
-    if('type' in msg)
-    {
-      if(typeof msg.type === 'string')
-      {
-        if(['getmempool', 'mempool'].includes(msg.type))
+    if ('type' in msg) {
+      if (typeof msg.type === 'string') {
+        if (['getmempool', 'mempool'].includes(msg.type))
           return
       }
     }
@@ -157,7 +165,7 @@ export class Peer {
     if (!Message.guard(msg)) {
       const validation = Message.validate(msg)
       return await this.fatalError(
-          `The received message does not match one of the known message formats: ${message}
+        `The received message does not match one of the known message formats: ${message}
          Validation error: ${JSON.stringify(validation)}`, INVALID_FORMAT
       )
     }
@@ -168,19 +176,19 @@ export class Peer {
       return await this.fatalError(`Received message ${message} prior to "hello"`, INVALID_HANDSHAKE)
     }
     Message.match(
-        async () => {
-          return await this.fatalError(`Received a second "hello" message, even though handshake is completed`, INVALID_HANDSHAKE)
-        },
-        this.onMessageGetPeers.bind(this),
-        this.onMessagePeers.bind(this),
-        this.onMessageIHaveObject.bind(this),
-        this.onMessageGetObject.bind(this),
-        this.onMessageObject.bind(this),
-        this.onMessageGetChainTip.bind(this),
-        this.onMessageChainTip.bind(this),
-        /*this.onMessageGetMempool.bind(this),
-        this.onMessageMempool.bind(this),*/
-        this.onMessageError.bind(this)
+      async () => {
+        return await this.fatalError(`Received a second "hello" message, even though handshake is completed`, INVALID_HANDSHAKE)
+      },
+      this.onMessageGetPeers.bind(this),
+      this.onMessagePeers.bind(this),
+      this.onMessageIHaveObject.bind(this),
+      this.onMessageGetObject.bind(this),
+      this.onMessageObject.bind(this),
+      this.onMessageGetChainTip.bind(this),
+      this.onMessageChainTip.bind(this),
+      this.onMessageGetMempool.bind(this),
+      this.onMessageMempool.bind(this),
+      this.onMessageError.bind(this)
     )(msg)
   }
 
@@ -193,7 +201,7 @@ export class Peer {
     this.handshakeCompleted = true
   }
   async onMessagePeers(msg: PeersMessageType) {
-    if(msg.peers.length > 30)
+    if (msg.peers.length > 30)
       return await this.fatalError(`Send too many peers`, INVALID_FORMAT)
 
     for (const peer of msg.peers) {
@@ -264,9 +272,8 @@ export class Peer {
       await objectManager.validate(msg.object, this)
     }
     catch (e: any) { // typescript does not allow strongly type try catch blocks....
-      if (e instanceof CustomError)
-      {
-        if(e.isNonFatal)
+      if (e instanceof CustomError) {
+        if (e.isNonFatal)
           this.sendError(`Received invalid object (id ${objectid}): ${e.message}`, e.getErrorName())
         else
           this.fatalError(`Received invalid object (id ${objectid}): ${e.message}`, e.getErrorName())
@@ -304,15 +311,16 @@ export class Peer {
   }
   async onMessageMempool(msg: MempoolMessageType) {
     /* TODO */
+    mempool.fetchUnkownTxs(msg.txids);
   }
   async onMessageError(msg: ErrorMessageType) {
     this.warn(`Peer reported error: ${msg.name}: ${msg.msg}`)
   }
   log(level: string, message: string, ...args: any[]) {
     logger.log(
-        level,
-        `[peer ${this.socket.peerAddr}:${this.socket.netSocket.remotePort}] ${message}`,
-        ...args
+      level,
+      `[peer ${this.socket.peerAddr}:${this.socket.netSocket.remotePort}] ${message}`,
+      ...args
     )
   }
   warn(message: string, ...args: any[]) {
