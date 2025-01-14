@@ -5,7 +5,7 @@ import { logger } from './logger'
 import { ObjectType } from './message'
 import { network } from './network'
 import { db, ObjectId, objectManager } from './object'
-import { Transaction } from './transaction'
+import { Outpoint, Transaction } from './transaction'
 import { UTXOSet } from './utxo'
 
 /**
@@ -15,13 +15,13 @@ class MemPool {
   /* TODO */
   txids: ObjectId[];
   state: UTXOSet;
-  localSpendings: { [key: string]: string };
+  usedOutpoints: Set<string>;
 
   constructor(
   ) {
     this.txids = []
     this.state = new UTXOSet(new Set<string>())
-    this.localSpendings = {}
+    this.usedOutpoints = new Set<string>()
   }
 
 
@@ -48,10 +48,31 @@ class MemPool {
   }
 
   /**
+  * @returns all IDs from the transactions in the mempool
+  */
+  async getTxObjects(): Promise<Transaction[]> {
+    /* TODO */
+    const transactions: Transaction[] = [];
+    try {
+      logger.debug(`Constructing transaction objects`);
+      for (const txId of this.txids) {
+        const txObject = await objectManager.get(txId);
+        transactions.push(Transaction.fromNetworkObject(txObject));
+      }
+    } catch (err) {
+      logger.debug(`Constructing transaction objects failed.`);
+      logger.debug(`Possibly attempted to load transaction listed in mempool but not found in db.`);
+    }
+
+    return transactions;
+  }
+
+  /**
    * save this mempool state
    */
   async save() {
     /* TODO */
+    return await db.put(`mempool`, { txIds: this.txids, state: this.state, used: this.usedOutpoints });
   }
 
   /**
@@ -59,9 +80,24 @@ class MemPool {
    */
   async load() {
     /* TODO */
-    if (chainManager.longestChainTip?.stateAfter) {
-      this.state = chainManager.longestChainTip?.stateAfter
+    try {
+      logger.debug(`Loading mempool from db if exists.`);
+      const { txIds, state, used } = await db.get(`mempool`);
+      this.txids = txIds;
+      this.state = state;
+      this.usedOutpoints = used;
+
+
+    } catch (error) {
+      logger.debug(`No mempool in db.`)
+      logger.debug(`Mempool state state to longest chain state.`)
+      if (chainManager.longestChainTip?.stateAfter) {
+        this.state = chainManager.longestChainTip?.stateAfter
+      }
     }
+
+
+
 
   }
 
@@ -72,12 +108,11 @@ class MemPool {
    */
   async onTransactionArrival(tx: Transaction): Promise<boolean> {
     /* TODO */
-    
+
     logger.debug(`Transaction ${tx.txid} arrived.`)
     logger.debug(`Checking if ${tx.txid} can be added to the mempool.`)
 
     const seen: Set<string> = new Set<string>()
-    const transactionSpending = {};
 
     if (tx.isCoinbase()) {
       logger.debug(`Transaction ${tx.txid} is a coinbase`)
@@ -102,20 +137,23 @@ class MemPool {
       }
       logger.debug(`Outpoint ${outpointStr} has not been spent in the same tx.`)
       logger.debug(`Input is valid`)
-      seen.add(outpointStr)
-      logger.debug(`Transaction is valid with respect to UTXO set`)
-      // Transaction is valid wrt state; apply it
-      for (const input of tx.inputs) {
-        const outpointStr: string = input.outpoint.toString()
-        for (let i = 0; i < tx.outputs.length; ++i) {
-          this.outpoints.add((new Outpoint(tx.txid, i)).toString())
-        }
+      if (this.usedOutpoints.has(outpointStr)) {
+        logger.debug(`Transaction ${tx.txid} attempts to reuse an outpoint ${outpointStr} that is already used by a transaction already in the mempool.`)
+        return false;
       }
-      logger.debug(`Adding ${tx.outputs.length} outputs to UTXO set`)
-      
-      logger.debug(`Outpoints set after tx application: ${this}`)
+
+      seen.add(outpointStr)
     }
 
+    seen.forEach((outPointStr) => this.usedOutpoints.add(outPointStr))
+
+    for (let i = 0; i < tx.outputs.length; ++i) {
+      this.state.outpoints.add((new Outpoint(tx.txid, i)).toString())
+    }
+
+    this.txids.push(tx.txid)
+
+    await this.save()
     return true;
   }
 

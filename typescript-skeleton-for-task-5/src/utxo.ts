@@ -69,7 +69,6 @@ export class UTXOSet {
    */
   async applyMultiple(txs: Transaction[], block?: Block) {
     let idx = 0
-
     for (const tx of txs) {
       logger.debug(`Applying transaction ${tx.txid} to state`)
       await this.apply(tx)

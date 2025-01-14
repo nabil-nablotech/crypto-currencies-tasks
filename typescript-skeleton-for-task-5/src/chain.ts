@@ -50,6 +50,19 @@ class ChainManager {
       this.longestChainHeight = height
       this.longestChainTip = block
       // TODO: reorg mempool?
+      if (block.stateAfter) {
+        mempool.state = block.stateAfter
+        try {
+          const transactions = await mempool.getTxObjects();
+          mempool.state.applyMultiple(transactions);
+          mempool.txids = [];
+          mempool.usedOutpoints = new Set<string>()
+          mempool.save()
+        } catch {
+          logger.debug(`failed to apply transactions of the mempool to the new block state`)
+        }
+
+      }
       await this.save()
     }
   }
@@ -71,14 +84,14 @@ export class Chain {
    * @param b2 a block belonging to a new, longer chain
    * @returns [lca, lca..b1, lca..b2]
    */
-  static async getForks(b1: Block, b2: Block): Promise<[Block, Chain, Chain]> {
-    // TODO
-    const lca = new Block();
-    const shortFork = new Block();
-    const longFork = new Block();
+  // static async getForks(b1: Block, b2: Block): Promise<[Block, Chain, Chain]> {
+  //   // TODO
+  //   const lca = new Block();
+  //   const shortFork = new Block();
+  //   const longFork = new Block();
 
-    return [lca, shortFork, longFork]
-  }
+  //   return [lca, shortFork, longFork]
+  // }
 }
 
 export const chainManager = new ChainManager()
