@@ -80,12 +80,14 @@ export class UTXOSet {
   /**
    * Applies multiple transaction to the current utxo set and skip transaction that cannot be added
    */
-  async applyMultipleMempool(txs: Transaction[]) {
+  async applyMultipleMempool(txs: Transaction[]): Promise<string[]> {
     let idx = 0
+    const transaction: string[] = [];
     for (const tx of txs) {
       try {
         logger.debug(`Applying transaction ${tx.txid} to state`)
         await this.apply(tx)
+        transaction.push(tx.txid);
         logger.debug(`State after transaction application is: ${this}`)
 
       } catch (err) {
@@ -96,6 +98,8 @@ export class UTXOSet {
 
       ++idx
     }
+
+    return transaction;
   }
 
   toString() {

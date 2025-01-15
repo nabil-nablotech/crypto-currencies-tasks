@@ -17,11 +17,51 @@ client.on('data', (data) => {
     console.log('Received from server:', data.toString());
     const msg = JSON.parse(data.toString().split("\n")[0]);
     if (msg.type == "hello") {
-        client.write(JSON.stringify({ "agent": "client-nablo-second", "type": "hello", "version": "0.10.3" }) + "\n");
+        client.write(JSON.stringify({ "agent": "client-nablotech", "type": "hello", "version": "0.10.3" }) + "\n");
         client.write(JSON.stringify({ "type": "peers", "peers": ["192.168.0.1:213", "192.168.0.1:233", "google.com:503"] }) + "\n");
+
+        setTimeout(() => client.write(JSON.stringify({ "type": "getmempool" }) + "\n"), 7000)
         // client.write(JSON.stringify({ "type": "ihaveobject", objectid: "d46d09138f0251edc32e28f1a744cb0b7286850e4c9c777d7e3c6e459b289347" }) + "\n");
         // client.write(JSON.stringify({ "type": "ihaveobject", objectid: "895ca2bea390b7508f780c7174900a631e73905dcdc6c07a6b61ede2ebd4033f" }) + "\n");
-    } else if (msg.type == "getobject") {
+        // client.write(JSON.stringify({ "type": "ihaveobject", objectid: "895ca2bea390b7508f780c7174900a631e73905dcdc6c07a6b61ede2ebd4033f" }) + "\n");
+
+        // GENESIS block
+        // client.write(JSON.stringify({
+        //     type: "object",
+        //     object: {
+        //         T: "0000abc000000000000000000000000000000000000000000000000000000000",
+        //         created: 1671062400,
+        //         miner: "Marabu",
+        //         nonce: "000000000000000000000000000000000000000000000000000000021bea03ed",
+        //         note: "The New York Times 2022-12-13: Scientists Achieve Nuclear Fusion Breakthrough With Blast of 192 Lasers",
+        //         previd: null,
+        //         txids: [],
+        //         type: "block"
+        //     }
+
+        // }) + "\n");
+
+        // // Sending secondblock
+        client.write(JSON.stringify({
+            type: "object",
+            object: {
+                T: "0000abc000000000000000000000000000000000000000000000000000000000",
+                created: 1671148800,
+                miner: "grader",
+                nonce: "1000000000000000000000000000000000000000000000000000000001aaf999",
+                note: "This block has a coinbase transaction",
+                previd: "0000000052a0e645eca917ae1c196e0d0a4fb756747f29ef52594d68484bb5e2",
+                txids: [
+                    "6ebfb4c8e8e9b19dcf54c6ce3e1e143da1f473ea986e70c5cb8899a4671c933a"
+                ],
+                type: "block"
+            }
+        }) + "\n");
+        
+    } else if (msg.type == "getmempool") {
+        client.write(JSON.stringify({ "type": "mempool", "txids": [] }) + "\n");
+
+    } /* else if (msg.type == "getobject") {
         if (msg.objectid == "d46d09138f0251edc32e28f1a744cb0b7286850e4c9c777d7e3c6e459b289347") {
             client.write(JSON.stringify({
                 type: "object",
@@ -67,7 +107,7 @@ client.on('data', (data) => {
 
 
     }
-
+ */
 
 });
 

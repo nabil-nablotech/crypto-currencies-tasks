@@ -34,6 +34,7 @@ class ChainManager {
     await db.put('longestchain', [this.longestChainTip, this.longestChainHeight])
   }
   async onValidBlockArrival(block: Block) {
+    let newAppliedTransactions: string[] = [];
     if (!block.valid) {
       throw new Error(`Received onValidBlockArrival() call for invalid block ${block.blockid}`)
     }
@@ -71,25 +72,25 @@ class ChainManager {
           logger.debug(`Old mempool transactions: ${mempool.txids}`)
           logger.debug(`Mempool state before old mempool transaction application:${mempool.state}`)
           const transactions = await mempool.getTxObjects();
-          await mempool.state.applyMultipleMempool(transactions);
+          newAppliedTransactions = await mempool.state.applyMultipleMempool(transactions);
           logger.debug(`Mempool state after old mempool transaction application:${mempool.state}`)
         } catch {
           logger.debug(`failed to apply transactions of the mempool to the new block state`)
         }
 
         try {
-          mempool.txids = [];
+          mempool.txids = newAppliedTransactions;
           mempool.usedOutpoints = new Set<string>()
           await mempool.save()
         } catch (error) {
-          
+
         }
 
       }
       logger.debug(`New longest chain has height ${height} and tip ${block.blockid}`)
       this.longestChainHeight = height
       this.longestChainTip = block
-      
+
       await this.save()
     }
   }
