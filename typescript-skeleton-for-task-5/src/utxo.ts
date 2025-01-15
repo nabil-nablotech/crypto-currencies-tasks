@@ -1,8 +1,8 @@
-import {Block} from './block'
-import {logger} from './logger'
-import {INVALID_TX_CONSERVATION, INVALID_TX_OUTPOINT} from './message'
-import {Outpoint, Transaction} from './transaction'
-import {CustomError} from "./errors";
+import { Block } from './block'
+import { logger } from './logger'
+import { INVALID_TX_CONSERVATION, INVALID_TX_OUTPOINT } from './message'
+import { Outpoint, Transaction } from './transaction'
+import { CustomError } from "./errors";
 
 export type UTXO = Set<string>
 
@@ -39,7 +39,7 @@ export class UTXOSet {
       if (!this.outpoints.has(outpointStr)) {
         logger.debug(`Transaction ${tx.txid} consumes ${outpointStr} which is not in the UTXO set.`)
         throw new CustomError(`Transaction consumes output (${JSON.stringify(outpointStr)}) that is not in the UTXO set. ` +
-            `This is either a double spend, or a spend of a transaction we have not seen before.`, INVALID_TX_OUTPOINT)
+          `This is either a double spend, or a spend of a transaction we have not seen before.`, INVALID_TX_OUTPOINT)
       }
       logger.debug(`Outpoint ${outpointStr} is unspent.`)
       logger.debug(`Checking if outpoint ${outpointStr} is being respent in the same tx.`)
@@ -76,7 +76,28 @@ export class UTXOSet {
       ++idx
     }
   }
-  
+
+  /**
+   * Applies multiple transaction to the current utxo set and skip transaction that cannot be added
+   */
+  async applyMultipleMempool(txs: Transaction[]) {
+    let idx = 0
+    for (const tx of txs) {
+      try {
+        logger.debug(`Applying transaction ${tx.txid} to state`)
+        await this.apply(tx)
+        logger.debug(`State after transaction application is: ${this}`)
+
+      } catch (err) {
+        logger.debug(`Cannot apply transaction ${tx.txid} to state`)
+        logger.debug(`State after failed transaction application is: ${this}`)
+
+      }
+
+      ++idx
+    }
+  }
+
   toString() {
     return `UTXO set: ${JSON.stringify(Array.from(this.outpoints))}`
   }

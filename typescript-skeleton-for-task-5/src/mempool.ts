@@ -72,7 +72,13 @@ class MemPool {
    */
   async save() {
     /* TODO */
-    return await db.put(`mempool`, { txIds: this.txids, state: this.state, used: this.usedOutpoints });
+    logger.debug(`Persisting mempool to db {txIds:${this.txids}, state:${this.state}, used:${Array.from(this.usedOutpoints).join(", ")}}`)
+    return await db.put(`mempool`, {
+      txIds: this.txids, state: {
+        outpoints: Array.from(this.state.outpoints)
+      },
+      used: Array.from(this.usedOutpoints)
+    });
   }
 
   /**
@@ -82,11 +88,11 @@ class MemPool {
     /* TODO */
     try {
       logger.debug(`Loading mempool from db if exists.`);
-      const { txIds, state, used } = await db.get(`mempool`);
-      this.txids = txIds;
-      this.state = state;
-      this.usedOutpoints = used;
-
+      const data = await db.get(`mempool`);
+      this.txids = data.txIds;
+      this.state = new UTXOSet(data.state.outpoints);
+      this.usedOutpoints = new Set(data.used);
+      logger.debug(`Loaded mempool to db {txIds:${this.txids}, state:${this.state}, used:${Array.from(this.usedOutpoints).join(", ")}}`)
 
     } catch (error) {
       logger.debug(`No mempool in db.`)
@@ -168,9 +174,9 @@ class MemPool {
   }
 
   async fetchUnkownTxs(txids: ObjectId[]) {
-    logger.debug(`Fetching unkown transactions from ${txids}.`)
     for (const txid of txids) {
       try {
+        logger.debug(`Fetching unkown transactions from ${txids}.`)
         await objectManager.exists(txid);
         logger.debug(`Tx: ${txids} already exists.`)
       } catch (error) {

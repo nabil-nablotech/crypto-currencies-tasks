@@ -155,12 +155,7 @@ export class Peer {
     }
     // for now, ignore messages that have a valid type but that we don't yet know how to parse
     // TODO: remove
-    if ('type' in msg) {
-      if (typeof msg.type === 'string') {
-        if (['getmempool', 'mempool'].includes(msg.type))
-          return
-      }
-    }
+
 
     if (!Message.guard(msg)) {
       const validation = Message.validate(msg)
@@ -308,6 +303,7 @@ export class Peer {
   }
   async onMessageGetMempool(msg: GetMempoolMessageType) {
     /* TODO */
+    this.sendMempool(mempool.txids);
   }
   async onMessageMempool(msg: MempoolMessageType) {
     /* TODO */
